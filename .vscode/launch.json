@@ -1,0 +1,36 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug C++",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${fileDirname}/${fileBasenameNoExtension}",  // Esegui il file compilato
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",  // Usa GDB per il debugging
+            "setupCommands": [
+                {
+                    "description": "Abilita la stampa di informazioni di debug",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "miDebuggerPath": "/usr/bin/gdb",  // Percorso del debugger (gdb)
+            "preLaunchTask": "g++ build active file",  // Task di compilazione (deve essere configurato in tasks.json)
+            "logging": {
+                "engineLogging": false
+            },
+            "miDebuggerArgs": "",
+            "debugServerPath": "",
+            "debugServerArgs": "",
+            "serverStarted": "",
+            "serverLaunchTimeout": 10000,
+            "filterStderr": false,
+            "filterStdout": false
+        }
+    ]
+}
