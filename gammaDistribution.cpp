@@ -1,9 +1,8 @@
-
-
 #include <cmath>
 #include <vector>
 #include <iostream>
 #include <iomanip>
+#include <Eigen/Dense>
 
 // functions list
 // 1. theta vector
@@ -16,13 +15,13 @@
 std::vector<double> buildTheta(const int N);
 std::vector<double> buildClAlpha(const int N);
 std::vector<double> buildChord(const int N, double &AR);
-double **buildA(const int N, std::vector<double> &theta, std::vector<double> &chord, std::vector<double> &clAlpha);
-void freeA(double **A, int rows);
+Eigen::MatrixXd buildA(const int N, std::vector<double> &theta, std::vector<double> &chord, std::vector<double> &clAlpha);
 std::vector<double> buildAlphaG(const int N);
 std::vector<double> buildAlpha0(const int N);
-std::vector<double> buildCVector(const int N, std::vector<double> &clAlpha, std::vector<double> &alphaG, std::vector<double> &alpha0);
-std::vector<double> linearSolverJacobi(const int N, std::vector<double> &cVector, double **A);
-
+Eigen::VectorXd buildCVector(const int N, std::vector<double> &clAlpha, std::vector<double> &alphaG, std::vector<double> &alpha0);
+Eigen::VectorXd linearSolverEigen(const int N, Eigen::VectorXd& cVector, Eigen::MatrixXd &A);
+double computeCl(double& AR, Eigen::VectorXd& bVector);
+double computeCd(double& AR, Eigen::VectorXd& bVector, double cl);
 
 int main()
 {
@@ -33,16 +32,15 @@ int main()
     std::vector<double> theta = buildTheta(N);
     std::vector<double> clAlpha = buildClAlpha(N);
     std::vector<double> chord = buildChord(N, AR);
-    double **A = buildA(N, theta, chord, clAlpha);
+    Eigen::MatrixXd A = buildA(N, theta, chord, clAlpha);
     std::vector<double> alphaG = buildAlphaG(N);
     std::vector<double> alpha0 = buildAlpha0(N);
-    std::vector<double> cVector = buildCVector(N, clAlpha, alphaG, alpha0);
-    std::vector<double> bVector = linearSolver(N, cVector, A);
+    Eigen::VectorXd cVector = buildCVector(N, clAlpha, alphaG, alpha0);
+    Eigen::VectorXd bVector = linearSolverEigen(N, cVector, A);
+    double cl = computeCl(AR, bVector);
+    double cd = computeCd(AR, bVector, cl);
+    double efficiency = cl / cd;
 
-
-
-    freeA(A, N);
-  
 
     return 0;
 }
@@ -77,34 +75,17 @@ std::vector<double> buildChord(const int N, double &AR)
     return chord;
 }
 
-double **buildA(const int N, std::vector<double> &theta, std::vector<double> &chord, std::vector<double> &clAlpha)
+Eigen::MatrixXd buildA(const int N, std::vector<double> &theta, std::vector<double> &chord, std::vector<double> &clAlpha)
 {
-    double **A;
-    A = new double *[N];
-
-    for (int i = 0; i < N; i++)
-    {
-        A[i] = new double[N];
-    }
-
+    Eigen::MatrixXd A(N, N);
     for (int i = 0; i < N; i++)
     {
         for (int k = 0; k < N; k++)
         {
-            A[i][k] = -4.0 * sin((k + 1) * theta[i]) / chord[i] - clAlpha[i] * (k + 1) * sin((k + 1) * theta[i]) / sin(theta[i]);
-            
+            A(i,k) = -4.0 * sin((k + 1) * theta[i]) / chord[i] - clAlpha[i] * (k + 1) * sin((k + 1) * theta[i]) / sin(theta[i]);
         }
     }
     return A;
-}
-
-void freeA(double **A, int rows)
-{
-    for (int i = 0; i < rows; i++)
-    {
-        delete[] A[i];
-    }
-    delete[] A;
 }
 
 std::vector<double> buildAlphaG(const int N)
@@ -127,23 +108,20 @@ std::vector<double> buildAlpha0(const int N)
     return alpha0;
 }
 
-std::vector<double> buildCVector(const int N, std::vector<double> &clAlpha, std::vector<double> &alphaG, std::vector<double> &alpha0)
+Eigen::VectorXd buildCVector(const int N, std::vector<double> &clAlpha, std::vector<double> &alphaG, std::vector<double> &alpha0)
 {
-    std::vector<double> cVector;
+    Eigen::VectorXd cVector(N);
     for (int i = 0; i < N; i++)
     {
-        cVector.push_back(clAlpha[i] * alphaG[i] - alpha0[i]);
+        cVector(i) = (clAlpha[i] * alphaG[i] - alpha0[i]);
     }
     return cVector;
 }
 
-std::vector<double> linearSolverJacobi(const int N, std::vector<double> &cVector, double **A)
+Eigen::VectorXd linearSolverEigen(const int N, Eigen::VectorXd& cVector, Eigen::MatrixXd& A)
 {
-    // Jacobi method
-    std::vector<double> bVector(N, 0.0);
-    std::vector<double> bVectorNext(N, 0.0);
 
-    // std::cout << "Matrix A:" << std::endl;
+    //  std::cout << "Matrix A:" << std::endl;
     // for (int i = 0; i < N; i++)
     // {
     //     for (int j = 0; j < N; j++)
@@ -152,60 +130,40 @@ std::vector<double> linearSolverJacobi(const int N, std::vector<double> &cVector
     //     }
     //     std::cout << std::endl;
     // }
-    //    std::cout << "Vector:" << std::endl;
-    // for (double val : cVector)
-    // {
-    //     std::cout << val << " ";
-    // }
-    // std::cout << std::endl;
-   
-    bool end = false;
-    int k = 0;
-    double sum;
-    double delta;
-    while (end == false)
-    {std::cout << "Matrix A:" << std::endl;
-    for (int i = 0; i < N; i++)
-    {
-        for (int j = 0; j < N; j++)
-        {
-            std::cout << std::setw(10) << A[i][j] << " "; // Formattazione per una stampa più leggibile
-        }
-        std::cout << std::endl;
-    }
-       std::cout << "Vector:" << std::endl;
-    for (double val : cVector)
+
+    // Perform LU decomposition using PartialPivLU
+    Eigen::PartialPivLU<Eigen::MatrixXd> lu_decomp(A);
+
+    // Solve the system using the LU decomposition
+    Eigen::VectorXd bVector = lu_decomp.solve(cVector);
+
+
+    std::cout << "Vector:" << std::endl;
+    for (double val : bVector)
     {
         std::cout << val << " ";
     }
     std::cout << std::endl;
-        for (int i = 0; i < N; i++)
-        {
-            sum = 0.0;
-            for (int j = 0; j < N; j++)
-            {
-                if (i != j)
-                {
-                    sum += A[i][j] * bVector[j];
-                }
-            }
-
-            bVectorNext[i] = (cVector[i] - sum) / A[i][i];
-        }
-
-        k++;
-        delta = 0.0;
-        for (int i = 0; i < N; i++) {
-            delta += (bVectorNext[i] - bVector[i]) * (bVectorNext[i] - bVector[i]);
-        }
-        delta = std::sqrt(delta);
-        end = (k > 1000 || delta < 1e-8);
-        for (int i = 0; i < N; i++)
-        {
-            bVector[i] = bVectorNext[i];
-        }
-        
-    }
 
     return bVector;
+}
+
+
+double computeCl(double& AR, Eigen::VectorXd& bVector)
+{
+
+    double cl = - M_PI * AR * bVector(0);
+    return cl;
+}
+
+double computeCd(double& AR, Eigen::VectorXd& bVector, double cl)
+{
+
+    double delta = 0.0;
+    for (int i = 1; i < bVector.size(); i++)
+    {
+        delta += (bVector(i) * bVector(0)) * (bVector(i) * bVector(0));
+    }
+    double cd = cl * cl / (M_PI * AR) * (1 + delta);
+    return cd;
 }

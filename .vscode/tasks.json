@@ -1,4 +1,5 @@
 {
+    "version": "2.0.0",
     "tasks": [
         {
             "type": "cppbuild",
@@ -9,7 +10,8 @@
                 "-g",
                 "${file}",
                 "-o",
-                "${fileDirname}/${fileBasenameNoExtension}"
+                "${fileDirname}/${fileBasenameNoExtension}",
+                "-I/usr/include/eigen3"
             ],
             "options": {
                 "cwd": "${fileDirname}"
@@ -23,6 +25,5 @@
             },
             "detail": "compiler: /usr/bin/g++"
         }
-    ],
-    "version": "2.0.0"
+    ]
 }
