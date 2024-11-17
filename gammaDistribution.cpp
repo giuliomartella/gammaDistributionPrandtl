@@ -13,6 +13,7 @@
 // 5. linear solver
 // 6. coefficients
 // 7. visualizations
+
 std::vector<double> buildTheta(const int N);
 std::vector<double> buildClAlpha(const int N);
 std::vector<double> buildChord(const int N, double &AR, double &TR, std::vector<double> &theta);
