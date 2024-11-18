@@ -95,11 +95,13 @@ std::vector<double> buildClAlpha(const int N)
 std::vector<double> buildChord(const int N, double &AR, double &TR, std::vector<double> &theta)
 {
     std::vector<double> chord;
-    double z;
+    double z, meanChord, rootChord;
     for (int i = 0; i < N; i++)
     {
-        z = 0.5 * cos(theta[i]);
-        chord.push_back(1.0 / AR * TR * abs(z));
+        z = cos(theta[i]);
+        meanChord = 1.0 / AR;
+        rootChord = 2.0 * meanChord / (1 + TR);
+        chord.push_back(rootChord * TR * abs(z));
     }
     return chord;
 }
